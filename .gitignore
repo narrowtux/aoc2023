@@ -24,3 +24,5 @@ aoc2023-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+/priv/inputs
