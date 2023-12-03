@@ -40,7 +40,7 @@ defmodule Day2 do
         |> String.split(",")
         |> Enum.map(fn draw ->
           [_, amount, color] = Regex.run(~r/^\s*([0-9]+)\s([a-z]+)\s*$/, draw)
-          {String.to_integer(amount), String.to_atom(color)}
+          {String.to_atom(color), String.to_integer(amount)}
         end)
       end)
 
@@ -50,7 +50,7 @@ defmodule Day2 do
   def cubes_needed({game_id, sets}) do
     sets =
       Enum.map(sets, fn set ->
-        Enum.group_by(set, &elem(&1, 1), &elem(&1, 0))
+        Enum.group_by(set, &elem(&1, 0), &elem(&1, 1))
         |> Enum.map(fn {color, draws} ->
           {color, Enum.sum(draws)}
         end)
