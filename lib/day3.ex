@@ -1,6 +1,6 @@
 defmodule Day3 do
   defp input() do
-    Application.app_dir(:aoc2023, "priv/inputs/test3.txt")
+    Application.app_dir(:aoc2023, "priv/inputs/day3.txt")
     |> File.stream!()
     |> Stream.map(&String.trim/1)
   end
@@ -48,7 +48,14 @@ defmodule Day3 do
         find_gears(line, index)
       end)
 
-
+    gears
+    |> Enum.flat_map(fn gear ->
+      case Enum.filter(numbers, &adjacent_to_gear?(&1, gear)) do
+        [{a, _, _, _}, {b, _, _, _}] -> [a * b]
+        _ -> []
+      end
+    end)
+    |> Enum.sum()
   end
 
   @digits ~w[0 1 2 3 4 5 6 7 8 9]
@@ -91,5 +98,10 @@ defmodule Day3 do
     line
     |> String.slice(from, to - from)
     |> String.match?(~r/[^\.0-9]/)
+  end
+
+  def adjacent_to_gear?({_, from, to, ny}, {gx, gy}) do
+    (ny in (gy-1)..(gy+1)) and
+    (gx in (from - 1)..to)
   end
 end
