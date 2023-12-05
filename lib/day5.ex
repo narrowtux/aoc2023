@@ -1,7 +1,5 @@
 defmodule Day5 do
   defmodule Almanac do
-    @type t :: %__MODULE__{}
-
     defstruct seeds: [],
               seed_ranges: [],
               mappings: %{}
@@ -17,9 +15,7 @@ defmodule Day5 do
       seed_ranges =
         ints
         |> Enum.chunk_every(2)
-        |> Enum.map(fn [start, length] ->
-          {:seed, start..(start + length - 1)}
-        end)
+        |> Enum.map(&{:seed, apply(__MODULE__, :to_range, &1)})
 
       almanac = Map.merge(almanac, %{seeds: seeds, seed_ranges: seed_ranges})
       parse(rest, almanac)
@@ -38,6 +34,10 @@ defmodule Day5 do
         end)
 
       parse(rest, almanac)
+    end
+
+    def to_range(start, length) do
+      start..(start + length - 1)
     end
 
     def parse_int_list(int_list) do
@@ -61,75 +61,6 @@ defmodule Day5 do
 
       parse_map(rest, [mapping | acc])
     end
-
-    @spec map(t(), {atom, integer}, atom) :: {atom, integer}
-    def map(almanac, {source, number}, destination) do
-      mappings = Map.get(almanac.mappings, {source, destination}, [])
-
-      entry =
-        Enum.find(mappings, fn {source, _shift_by} ->
-          number in source
-        end)
-
-      case entry do
-        nil ->
-          {destination, number}
-
-        {source_start.._, shift_by} ->
-          {destination, number + shift_by}
-      end
-    end
-
-    @spec map_range(t, {atom, Range.t()}, atom) :: [{atom, Range.t()}]
-
-    def map_range(almanac, {source, range}, destination) do
-      mappings = Map.get(almanac.mappings, {source, destination}, [])
-
-      range
-      |> reduce_range(mappings)
-      |> Enum.map(&{destination, &1})
-    end
-
-    def reduce_range(range, mappings, acc \\ [])
-    def reduce_range(range, [], acc) do
-      [range | acc]
-    end
-    def reduce_range(range, [next_mapping | rest], acc) do
-      {next_range, shift_by} = next_mapping
-      cond do
-        # range begins after next range, simply skip this range
-        range.first > next_range.last ->
-          reduce_range(range, rest, acc)
-
-        # range starts and ends before next range
-        range.first < next_range.first and Range.disjoint?(range, next_range) ->
-          [range | acc]
-
-        # range begins before current range
-        range.first < next_range.first ->
-          reduce_range(
-            next_range.first..range.last,
-            [next_mapping | rest],
-            [range.first..(next_range.first-1) | acc]
-          )
-
-        # range ends after current range
-        range.last > next_range.last ->
-          range_rest = (next_range.last + 1)..range.last
-          range_out = range.first..next_range.last
-          range_out = Range.shift(range_out, shift_by)
-          reduce_range(range_rest, rest, [range_out | acc])
-
-        # range ends within current range
-        range.last <= next_range.last ->
-          range_out = Range.shift(range, shift_by)
-          [range_out | acc]
-      end
-    end
-
-    defp to_range(start, length) do
-      start..(start + length - 1)
-    end
   end
 
   def almanac(variant \\ :day) do
@@ -145,20 +76,75 @@ defmodule Day5 do
     almanac = almanac(variant)
 
     Enum.reduce(@path, almanac.seeds, fn dest, values ->
-      Enum.map(values, &Almanac.map(almanac, &1, dest))
+      Enum.map(values, &__MODULE__.map(almanac, &1, dest))
     end)
-    |> Enum.min_by(&elem(&1, 1))
-    |> elem(1)
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.min()
   end
 
   def part2(variant \\ :day) do
     almanac = almanac(variant)
 
     Enum.reduce(@path, almanac.seed_ranges, fn dest, values ->
-      Enum.flat_map(values, &Almanac.map_range(almanac, &1, dest))
+      Enum.flat_map(values, &__MODULE__.map_range(almanac, &1, dest))
     end)
-    |> Enum.min_by(fn {_, first.._} -> first end)
-    |> elem(1)
-    |> Map.get(:first)
+    |> Enum.map(fn {_, first.._} -> first end)
+    |> Enum.min()
+  end
+
+  def map(almanac, {source, number}, destination) do
+    mappings = Map.get(almanac.mappings, {source, destination}, [])
+
+    shift_by =
+      Enum.find_value(mappings, 0, fn {source, shift_by} ->
+        if number in source, do: shift_by
+      end)
+
+    {destination, number + shift_by}
+  end
+
+  def map_range(almanac, {source, range}, destination) do
+    mappings = Map.get(almanac.mappings, {source, destination}, [])
+
+    range
+    |> reduce_range(mappings)
+    |> Enum.map(&{destination, &1})
+  end
+
+  def reduce_range(range, mappings, acc \\ [])
+  def reduce_range(range, [], acc), do: [range | acc]
+
+  def reduce_range(range, [next_mapping | rest], acc) do
+    {next_range, shift_by} = next_mapping
+
+    cond do
+      # range begins after next range, simply skip this range
+      range.first > next_range.last ->
+        reduce_range(range, rest, acc)
+
+      # range starts and ends before next range
+      range.first < next_range.first and Range.disjoint?(range, next_range) ->
+        [range | acc]
+
+      # range begins before current range
+      range.first < next_range.first ->
+        reduce_range(
+          next_range.first..range.last,
+          [next_mapping | rest],
+          [range.first..(next_range.first - 1) | acc]
+        )
+
+      # range ends after current range
+      range.last > next_range.last ->
+        reduce_range(
+          (next_range.last + 1)..range.last,
+          rest,
+          [Range.shift(range.first..next_range.last, shift_by) | acc]
+        )
+
+      # range ends within current range
+      range.last <= next_range.last ->
+        [Range.shift(range, shift_by) | acc]
+    end
   end
 end
