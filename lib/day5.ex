@@ -30,6 +30,8 @@ defmodule Day5 do
       [from, to] = Enum.map(from_to, &String.to_atom/1)
       {values, rest} = parse_map(rest)
 
+      values = Enum.sort_by(values, fn {from.._, _} -> from end)
+
       almanac =
         Map.update!(almanac, :mappings, fn mappings ->
           Map.put(mappings, {from, to}, values)
@@ -50,8 +52,14 @@ defmodule Day5 do
     def parse_map([], acc), do: {Enum.reverse(acc), []}
 
     def parse_map([line | rest], acc) do
-      list = parse_int_list(line)
-      parse_map(rest, [List.to_tuple(list) | acc])
+      [dest_start, source_start, length] = parse_int_list(line)
+
+      mapping = {
+        to_range(source_start, length),
+        dest_start - source_start
+      }
+
+      parse_map(rest, [mapping | acc])
     end
 
     @spec map(t(), {atom, integer}, atom) :: {atom, integer}
@@ -59,36 +67,68 @@ defmodule Day5 do
       mappings = Map.get(almanac.mappings, {source, destination}, [])
 
       entry =
-        Enum.find(mappings, fn {_dest_start, source_start, length} ->
-          number in source_start..(source_start + length - 1)
+        Enum.find(mappings, fn {source, _shift_by} ->
+          number in source
         end)
 
       case entry do
         nil ->
           {destination, number}
 
-        {dest_start, source_start, _length} ->
-          {destination, number - source_start + dest_start}
+        {source_start.._, shift_by} ->
+          {destination, number + shift_by}
       end
     end
 
-    @spec map_range(t, {atom, Range.t}, atom) :: [{atom, Range.t}]
-    def map_range(almanac, {source, range}, destination) do
-      numbers = for x <- range, {_destination, res} = map(almanac, {source, x}, destination), do: res
-      # now we compress the numbers back into ranges to save memory
-      {last, ranges} =
-        Enum.sort(numbers)
-        |> Enum.reduce({nil, []}, fn
-          x, {nil, acc} -> {x..x, acc}
-          x, {from..to, acc} when to + 1 == x -> {from..x, acc}
-          x, {outside, acc} -> {x..x, [{destination, outside} | acc]}
-        end)
+    @spec map_range(t, {atom, Range.t()}, atom) :: [{atom, Range.t()}]
 
-      [{destination, last} | ranges]
+    def map_range(almanac, {source, range}, destination) do
+      mappings = Map.get(almanac.mappings, {source, destination}, [])
+
+      range
+      |> reduce_range(mappings)
+      |> Enum.map(&{destination, &1})
+    end
+
+    def reduce_range(range, mappings, acc \\ [])
+    def reduce_range(range, [], acc) do
+      [range | acc]
+    end
+    def reduce_range(range, [next_mapping | rest], acc) do
+      {next_range, shift_by} = next_mapping
+      cond do
+        # range begins after next range, simply skip this range
+        range.first > next_range.last ->
+          reduce_range(range, rest, acc)
+
+        # range starts and ends before next range
+        range.first < next_range.first and Range.disjoint?(range, next_range) ->
+          [range | acc]
+
+        # range begins before current range
+        range.first < next_range.first ->
+          reduce_range(
+            next_range.first..range.last,
+            [next_mapping | rest],
+            [range.first..(next_range.first-1) | acc]
+          )
+
+        # range ends after current range
+        range.last > next_range.last ->
+          range_rest = (next_range.last + 1)..range.last
+          range_out = range.first..next_range.last
+          range_out = Range.shift(range_out, shift_by)
+          reduce_range(range_rest, rest, [range_out | acc])
+
+        # range ends within current range
+        range.last <= next_range.last ->
+          range_out = Range.shift(range, shift_by)
+          [range_out | acc]
+      end
     end
 
     defp to_range(start, length) do
-      start .. (start + length - 1)
+      start..(start + length - 1)
     end
   end
 
@@ -108,14 +148,17 @@ defmodule Day5 do
       Enum.map(values, &Almanac.map(almanac, &1, dest))
     end)
     |> Enum.min_by(&elem(&1, 1))
+    |> elem(1)
   end
 
   def part2(variant \\ :day) do
     almanac = almanac(variant)
 
     Enum.reduce(@path, almanac.seed_ranges, fn dest, values ->
-      IO.puts "calculating #{dest}s"
       Enum.flat_map(values, &Almanac.map_range(almanac, &1, dest))
     end)
+    |> Enum.min_by(fn {_, first.._} -> first end)
+    |> elem(1)
+    |> Map.get(:first)
   end
 end
