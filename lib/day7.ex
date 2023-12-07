@@ -36,7 +36,7 @@ defmodule Day7 do
 
   def part2(variant \\ :day) do
     mapping = %{
-      ?J => 1,
+      ?J => 0,
       ?A => 12,
       ?K => 11,
       ?Q => 10,
@@ -137,5 +137,10 @@ defmodule Day7 do
           end
         end)
     end
+  end
+
+  def value_2_from_hand(charlist) do
+    %Hand{labels: charlist}
+    |> value_2()
   end
 end
