@@ -39,18 +39,6 @@ defmodule Day8 do
     |> get_steps("AAA", "ZZZ")
   end
 
-  def get_steps(map, from, to) do
-    map.path
-    |> Stream.cycle()
-    |> Enum.reduce_while({from, 0}, fn instruction, {node, steps} ->
-      next = choose_next(node, map, instruction)
-      cond do
-        String.ends_with?(next, to) -> {:halt, steps + 1}
-        true -> {:cont, {next, steps + 1}}
-      end
-    end)
-  end
-
   def part2(variant \\ :day) do
     map =
       input(variant)
@@ -61,6 +49,18 @@ defmodule Day8 do
     |> Enum.filter(&String.ends_with?(&1, "A"))
     |> Enum.map(&get_steps(map, &1, "Z"))
     |> Enum.reduce(&BasicMath.lcm/2)
+  end
+
+  def get_steps(map, from, to) do
+    map.path
+    |> Stream.cycle()
+    |> Enum.reduce_while({from, 0}, fn instruction, {node, steps} ->
+      next = choose_next(node, map, instruction)
+      cond do
+        String.ends_with?(next, to) -> {:halt, steps + 1}
+        true -> {:cont, {next, steps + 1}}
+      end
+    end)
   end
 
   def choose_next(node, map, instruction) do
