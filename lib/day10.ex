@@ -1,13 +1,4 @@
 defmodule Day10 do
-  @replacements %{
-    "|" => "║",
-    "-" => "═",
-    "F" => "╔",
-    "J" => "╗",
-    "L" => "╚",
-    "7" => "╗"
-  }
-
   @type pos :: {row :: integer(), col :: integer()}
   @type tile :: ?. | ?S | ?- | ?| | ?7 | ?L | ?F | ?J
   @type pipe_map :: [[tile()]]
