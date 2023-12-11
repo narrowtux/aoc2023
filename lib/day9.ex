@@ -3,20 +3,20 @@ defmodule Day9 do
     Application.app_dir(:aoc2023, "priv/inputs/#{variant}9.txt")
     |> File.stream!()
     |> Stream.map(&String.trim/1)
+    |> Stream.map(&parse_int_list/1)
   end
 
   def part1(variant \\ :day) do
     variant
     |> input()
-    |> Stream.map(&parse_int_list/1)
-    |> Enum.map(&predict_next/1)
+    |> Stream.map(&predict_next/1)
     |> Enum.sum()
   end
   def part2(variant \\ :day) do
     variant
     |> input()
-    |> Stream.map(&parse_int_list/1)
-    |> Enum.map(&predict_previous/1)
+    |> Stream.map(&Enum.reverse/1)
+    |> Stream.map(&predict_next/1)
     |> Enum.sum()
   end
 
@@ -26,16 +26,11 @@ defmodule Day9 do
     |> Enum.map(&String.to_integer/1)
   end
 
-  def predict_next(line), do: predict(line, :last)
-  def predict_previous(line), do: predict(line, :first)
-  def predict(line, side) do
+  def predict_next(line) do
     if not all_same?(line) do
       d = derive(line)
-      a = predict(d, side)
-      case side do
-        :last -> List.last(line) + a
-        :first -> List.first(line) - a
-      end
+      a = predict_next(d)
+      List.last(line) + a
     else
       List.first(line)
     end
