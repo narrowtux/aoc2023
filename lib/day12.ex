@@ -19,5 +19,5 @@ defmodule Day12 do
 
   def variants(line)
   def variants({'', rest}), do: rest == []
-  def variants()
+  # def variants()
 end
